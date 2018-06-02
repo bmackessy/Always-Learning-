@@ -68,5 +68,3 @@ with tf.Session() as sess:
             print("MSE " + str(best_mse))
        
     print(theta.eval())
-        
-
