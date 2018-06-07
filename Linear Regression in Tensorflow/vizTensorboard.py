@@ -2,6 +2,12 @@ import tensorflow as tf
 from sklearn.datasets import load_breast_cancer
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from datetime import datetime
+
+# Setup variables for visualization
+now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+root_logdir = "tf_logs"
+logdir = "{}/run-{}/".format(root_logdir, now)
 
 
 n_epochs = 1000
@@ -38,11 +44,17 @@ mse = tf.reduce_mean(tf.square(error), name="mse")
 
 # Operation that adjusts theta values based on gradients & learning rate
 # training_op = theta.assign(theta - learning_rate * gradients)
-# optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
 optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
 training_op = optimizer.minimize(mse)
 
+
+
 init = tf.global_variables_initializer()
+
+
+# Setup summary statistics
+mse_summary = tf.summary.scalar('MSE', mse)
+file_writer = tf.summary.FileWriter(logdir, tf.get_default_graph())
 
 def fetch_batch(epoch, batch_index, batch_size):
     np.random.seed(epoch * num_batches + batch_index)  
@@ -61,10 +73,18 @@ with tf.Session() as sess:
         
         for batch_index in range(num_batches):
             X_batch, y_batch = fetch_batch(epoch, batch_index, batch_size)
-            _, best_mse = sess.run([training_op,mse], feed_dict={X: X_batch, y: y_batch})
-        
-        if epoch % 100 == 0:
-            print("Epoch: " + str(epoch))
-            print("MSE " + str(best_mse))
+            if batch_index % 10 == 0:
+                summary_str = mse_summary.eval(feed_dict={X: X_batch, y: y_batch})
+                step = epoch * num_batches + batch_index
+                file_writer.add_summary(summary_str, step)
+
+            sess.run([training_op,mse], feed_dict={X: X_batch, y: y_batch})
+            #sess.run(training_op, feed_dict={X: X_batch, y: y_batch})
+
        
     print(theta.eval())
+
+
+file_writer.close()
+        
+
